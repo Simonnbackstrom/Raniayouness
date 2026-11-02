@@ -1,0 +1,16 @@
+# RAYN Beauty Spa & Wellness
+# Kampanjsidorna nås bara via annonser och ska inte indexeras.
+# (De har dessutom <meta name="robots" content="noindex">.)
+
+User-agent: *
+Disallow: /kampanj/
+
+# Metas crawler måste kunna läsa kampanjsidorna för förhandsvisning
+# och annonsgranskning – därför tillåts den uttryckligen.
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+Sitemap: https://www.raynbeauty.se/sitemap.xml
