@@ -167,7 +167,20 @@ window.RAYN_CONFIG = {
 
   /* true = logga alla events i konsolen. Kan även slås på per besök med
      ?rayn_debug=1 i URL:en. */
-  DEBUG: false
+  DEBUG: false,
+
+  /* --- Intresseformulär (landningssidan) ------------------------------
+     Formuläret skickas via Web3Forms (https://web3forms.com) som mejlar
+     anmälan till salongen. Skapa en gratis nyckel med salongens mejl på
+     web3forms.com och klistra in den här. Nyckeln får ligga publikt.
+     Tom nyckel = formuläret visar ett meddelande med telefonnumret i stället. */
+  LEAD_FORM: {
+    ACCESS_KEY: '',
+    SUBJECT: 'Ny intresseanmälan: CO2 laser',
+    /* Meta-event vid skickad anmälan. Skickas med lead_type 'intresseformular'
+       så att den kan skiljas från klick på Boka-knappar. */
+    EVENT: 'Lead'
+  }
 };
 
 /* ---- Landningssidan: stämningsbilder ----

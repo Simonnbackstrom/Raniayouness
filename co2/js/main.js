@@ -136,8 +136,17 @@
       }, sticky);
     };
     new IntersectionObserver(function (entries) { triggerVisible = entries[0].isIntersecting; update(); }).observe(trigger);
-    var end = document.querySelector('[data-sticky-hide]');
-    if (end) new IntersectionObserver(function (entries) { endVisible = entries[0].isIntersecting; update(); }).observe(end);
+    /* Alla [data-sticky-hide] (t.ex. formuläret och avslutande CTA) döljer den fasta knappen när de syns */
+    var hideZones = document.querySelectorAll('[data-sticky-hide]');
+    var visibleZones = 0;
+    Array.prototype.forEach.call(hideZones, function (zone) {
+      var inView = false;
+      new IntersectionObserver(function (entries) {
+        var now = entries[0].isIntersecting;
+        if (now !== inView) { visibleZones += now ? 1 : -1; inView = now; }
+        endVisible = visibleZones > 0; update();
+      }).observe(zone);
+    });
     update();
   }
 
