@@ -1954,3 +1954,30 @@ select.lead-field__input {
 }
 select.lead-field__input:invalid { color: var(--color-taupe-text); }
 select.lead-field__input option { color: var(--color-ink); }
+
+/* ==========================================================================
+   Cookieruta: tydligare och vänligare (samma val, lika tydligt att neka)
+   ========================================================================== */
+.lp .cookie-banner__title { font-size: 1.35rem; line-height: 1.2; }
+.lp .cookie-banner__text { font-size: var(--fs-sm); }
+.lp .cookie-banner__actions .btn { min-height: 2.875rem; }
+
+.lp .cookie-dialog { display: none; flex-direction: column; overflow: hidden; width: min(100% - 1.5rem, 32rem); max-height: calc(100dvh - 1.5rem); border-radius: 1.5rem; }
+.lp .cookie-dialog[open] { display: flex; }
+.lp .cookie-dialog__form { display: flex; flex-direction: column; min-height: 0; max-height: inherit; padding: 0; }
+.lp .cookie-dialog__body { overflow-y: auto; padding: var(--space-6) var(--space-5) var(--space-4); }
+.lp .cookie-dialog__title { font-size: 1.75rem; line-height: 1.15; letter-spacing: 0; margin: 0 0 var(--space-3); padding-right: 2.75rem; }
+.lp .cookie-dialog__body > p { line-height: 1.6; }
+.lp .cookie-option { padding: var(--space-4) 0; }
+.lp .cookie-option__desc { line-height: 1.55; }
+.lp .cookie-dialog__more { margin: var(--space-3) 0 0; }
+.lp .cookie-dialog__actions {
+  flex: none;
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);
+  margin: 0; padding: var(--space-4) var(--space-5) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--color-cream-soft);
+  border-top: 1px solid var(--color-line);
+}
+.lp .cookie-dialog__actions .btn { min-height: 3rem; }
+.lp .cookie-dialog__actions .btn--text { grid-column: 1 / -1; justify-self: center; min-height: 2.5rem; }
+.lp .cookie-dialog__close { top: var(--space-4); right: var(--space-4); }

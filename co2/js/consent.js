@@ -62,11 +62,11 @@
     banner.setAttribute('aria-labelledby', 'cookie-banner-title');
     banner.innerHTML =
       '<div class="cookie-banner__inner">' +
-        '<p class="cookie-banner__title" id="cookie-banner-title">Vi värnar om din integritet</p>' +
-        '<p class="cookie-banner__text">Med ditt samtycke använder vi Metas pixel för att mäta och förbättra våra annonser på Facebook och Instagram. ' +
-        'Du kan ändra ditt val när som helst. <a href="' + policyUrl + '">Läs mer om cookies</a></p>' +
+        '<p class="cookie-banner__title" id="cookie-banner-title">Vi vill visa dig rätt erbjudanden</p>' +
+        '<p class="cookie-banner__text">Med cookies kan vi visa dig relevanta erbjudanden, som kampanjpriser på behandlingar du är intresserad av, och se vilka annonser som fungerar. ' +
+        'Du väljer själv och kan ändra dig när som helst. <a href="' + policyUrl + '">Läs mer</a></p>' +
         '<div class="cookie-banner__actions">' +
-          '<button type="button" class="btn btn--primary btn--sm" data-consent-action="accept">Acceptera</button>' +
+          '<button type="button" class="btn btn--primary btn--sm" data-consent-action="accept">Godkänn alla</button>' +
           '<button type="button" class="btn btn--outline btn--sm" data-consent-action="necessary">Endast nödvändiga</button>' +
           '<button type="button" class="btn btn--text btn--sm" data-consent-action="settings">Inställningar</button>' +
         '</div>' +
@@ -92,27 +92,30 @@
     dialog.setAttribute('aria-labelledby', 'cookie-dialog-title');
     dialog.innerHTML =
       '<form method="dialog" class="cookie-dialog__form">' +
-        '<h2 class="cookie-dialog__title" id="cookie-dialog-title">Cookieinställningar</h2>' +
-        '<p>Välj vilka typer av cookies och lagring du godkänner. Ditt val sparas i 12 månader och kan ändras via länken ”Cookieinställningar” längst ned på varje sida.</p>' +
+        '<div class="cookie-dialog__body">' +
+        '<h2 class="cookie-dialog__title" id="cookie-dialog-title">Dina cookieval</h2>' +
+        '<p>Välj vad du godkänner. Ditt val sparas i 12 månader och du kan ändra det när som helst via ”Cookieinställningar” längst ned på sidan.</p>' +
         '<div class="cookie-option">' +
           '<div class="cookie-option__text">' +
             '<p class="cookie-option__name" id="co-necessary-label">Nödvändiga</p>' +
-            '<p class="cookie-option__desc">Krävs för att webbplatsen ska fungera, t.ex. för att komma ihåg ditt cookieval och vilken kampanj du kom ifrån (sparas bara under besöket). Kan inte stängas av.</p>' +
+            '<p class="cookie-option__desc">Gör att sidan fungerar och kommer ihåg ditt val. Kan inte stängas av.</p>' +
           '</div>' +
           '<input type="checkbox" class="switch" checked disabled aria-labelledby="co-necessary-label">' +
         '</div>' +
         '<div class="cookie-option">' +
           '<div class="cookie-option__text">' +
             '<label class="cookie-option__name" for="co-marketing">Marknadsföring</label>' +
-            '<p class="cookie-option__desc">Metas pixel från Meta Platforms Ireland Ltd. hjälper oss att mäta hur våra annonser på Facebook och Instagram fungerar och att visa relevanta annonser. Sätter cookies som _fbp och _fbc.</p>' +
+            '<p class="cookie-option__desc">Hjälper oss visa dig relevanta erbjudanden på Instagram och Facebook och mäta vilka annonser som fungerar. Tjänsten kommer från Meta.</p>' +
           '</div>' +
           '<input type="checkbox" class="switch" id="co-marketing">' +
         '</div>' +
-        '<div class="cookie-dialog__actions">' +
-          '<button type="button" class="btn btn--outline btn--sm" data-consent-action="save">Spara mina val</button>' +
-          '<button type="button" class="btn btn--primary btn--sm" data-consent-action="accept">Acceptera alla</button>' +
-        '</div>' +
         '<p class="cookie-dialog__more"><a href="' + policyUrl + '">Läs mer i integritetspolicyn</a></p>' +
+        '</div>' +
+        '<div class="cookie-dialog__actions">' +
+          '<button type="button" class="btn btn--primary btn--sm cookie-dialog__accept" data-consent-action="accept">Godkänn alla</button>' +
+          '<button type="button" class="btn btn--outline btn--sm" data-consent-action="necessary">Avvisa alla</button>' +
+          '<button type="button" class="btn btn--text btn--sm" data-consent-action="save">Spara mina val</button>' +
+        '</div>' +
         '<button type="button" class="cookie-dialog__close" data-consent-action="close" aria-label="Stäng">&times;</button>' +
       '</form>';
     document.body.appendChild(dialog);
