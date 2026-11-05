@@ -191,7 +191,9 @@
    * @param {string} name  Eventnamn, t.ex. 'Lead'
    * @param {object} data  custom_data, t.ex. { content_name: 'Hydrafacial' }
    */
-  function track(name, data) {
+  /* userData (valfritt): SHA-256-krypterade kontaktuppgifter för avancerad matchning,
+     t.ex. { em: '<hash>', ph: '<hash>' }. Skickas bara om besökaren samtyckt. */
+  function track(name, data, userData) {
     var evt = {
       event_name: name,
       event_id: makeEventId(name),
@@ -207,8 +209,16 @@
       sent_to_pixel: false,
       sent_to_capi: false
     };
+    if (userData && hasConsent()) {
+      Object.keys(userData).forEach(function (k) { if (userData[k]) evt.user_data[k] = userData[k]; });
+    }
 
     if (hasConsent() && loadPixel()) {
+      if (userData) {
+        var am = {};
+        Object.keys(userData).forEach(function (k) { if (userData[k]) am[k] = userData[k]; });
+        if (Object.keys(am).length) window.fbq('init', pixelId, am); /* manuell avancerad matchning */
+      }
       var isStandard = STANDARD_EVENTS.indexOf(name) !== -1;
       window.fbq(isStandard ? 'track' : 'trackCustom', name, evt.custom_data, { eventID: evt.event_id });
       evt.sent_to_pixel = true;
@@ -249,7 +259,11 @@
       user_data: {
         fbp: getCookie('_fbp') || undefined,
         fbc: getCookie('_fbc') || undefined,
-        client_user_agent: navigator.userAgent
+        client_user_agent: navigator.userAgent,
+        em: evt.user_data.em || undefined,
+        ph: evt.user_data.ph || undefined,
+        fn: evt.user_data.fn || undefined,
+        country: evt.user_data.country || undefined
         /* client_ip_address läggs till på servern */
       },
       custom_data: evt.custom_data

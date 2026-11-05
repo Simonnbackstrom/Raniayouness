@@ -1,0 +1,20 @@
+# RAYN – Kommo-koppling för formuläret "Fråga om pris"
+# Publicera: npx wrangler deploy   (se README.md i samma mapp)
+name = "rayn-kommo"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Adresser som får skicka formuläret (kommaseparerat). Lägg till er riktiga domän.
+ALLOWED_ORIGINS = "https://www.raynbeauty.se,https://raynbeauty.se,http://127.0.0.1:5500,http://localhost:5500"
+# Kontots underdomän: raynbeauty.kommo.com → "raynbeauty"
+KOMMO_SUBDOMAIN = "raniayouness"
+# Valfritt:
+KOMMO_PIPELINE_ID = ""
+KOMMO_STATUS_ID = ""
+KOMMO_RESPONSIBLE_USER = ""
+KOMMO_TAGS = "Webbformulär,CO2 kampanj"
+KOMMO_UTM_FIELDS = "false"
+
+# KOMMO_TOKEN läggs ALDRIG här. Lägg den som hemlighet:
+#   npx wrangler secret put KOMMO_TOKEN

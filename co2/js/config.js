@@ -10,12 +10,12 @@ window.RAYN_CONFIG = {
      Byt till ert riktiga Pixel-ID (15–16 siffror) från Meta Events Manager.
      Så länge värdet inte är ett giltigt ID laddas pixeln aldrig, även om
      besökaren samtycker (events loggas då bara i konsolen i debug-läge). */
-  META_PIXEL_ID: 'ERSATT_MED_PIXEL_ID',
+  META_PIXEL_ID: '2060190041194622',
 
   /* Vilket event som skickas vid klick på Boka-knappar.
      'Lead'         = Metas standardevent (rekommenderas för optimering av annonser)
      'BookingClick' = eget custom event (trackCustom)                        */
-  BOOKING_EVENT: 'Lead',
+  BOOKING_EVENT: 'BookingClick', /* Lead skickas bara när formuläret skickats in */
 
   /* --- Bokadirekt ------------------------------------------------------ */
   BOKADIREKT_URL: 'https://www.bokadirekt.se/places/rayn-beauty-spa-wellness-132804',
@@ -169,14 +169,15 @@ window.RAYN_CONFIG = {
      ?rayn_debug=1 i URL:en. */
   DEBUG: false,
 
-  /* --- Intresseformulär (landningssidan) ------------------------------
-     Formuläret skickas via Web3Forms (https://web3forms.com) som mejlar
-     anmälan till salongen. Skapa en gratis nyckel med salongens mejl på
-     web3forms.com och klistra in den här. Nyckeln får ligga publikt.
-     Tom nyckel = formuläret visar ett meddelande med telefonnumret i stället. */
+  /* --- Formuläret "Fråga om pris" (landningssidan) ---------------------
+     Förfrågan skickas till Kommo via Vercel-funktionen api/kommo.js i repots rot.
+     KOMMO_ENDPOINT: '/api/kommo' (samma domän). Kommo-token läggs i Vercel, inte här.
+     ACCESS_KEY:     (valfritt) Web3Forms-nyckel som reserv om Kommo inte svarar.
+     Båda tomma = formuläret visar ett meddelande med telefonnumret i stället. */
   LEAD_FORM: {
+    KOMMO_ENDPOINT: '/api/kommo',
     ACCESS_KEY: '',
-    SUBJECT: 'Ny intresseanmälan: CO2 laser',
+    SUBJECT: 'Ny prisfråga: CO2 laser',
     /* Meta-event vid skickad anmälan. Skickas med lead_type 'intresseformular'
        så att den kan skiljas från klick på Boka-knappar. */
     EVENT: 'Lead'
