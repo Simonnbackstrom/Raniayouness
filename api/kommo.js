@@ -1,10 +1,10 @@
 /* ==========================================================================
-   RAYN – Kommo-koppling för formuläret "Fråga om pris" (Vercel-funktion)
+   RAYN – Kommo-koppling för intresseformuläret (Vercel-funktion)
    --------------------------------------------------------------------------
    Ligger i /api/kommo.js och publiceras automatiskt av Vercel tillsammans med
    webbplatsen. Adressen blir https://<er-domän>/api/kommo.
 
-   Formuläret på /co2/ skickar hit. Funktionen skapar ett lead med kontakt i
+   Formulären på /co2/ skickar hit. Funktionen skapar ett lead med kontakt i
    Kommo och lägger en anteckning med allt kunden skrev, plus kampanjkälla.
    Kommo-token ligger som miljövariabel i Vercel, aldrig i webbsidans kod.
 
@@ -18,10 +18,12 @@
                              "Webbformulär,CO2 kampanj")
      ALLOWED_ORIGINS         Extra domäner som får skicka (valfritt). Den egna
                              domänen är alltid tillåten.
+
+   Tar emot: { name, email, phone?, message?, interest?, treatment?,
+               form_position?, page?, utm?, fbclid? }
+   Kräver e-post eller telefon.
    ========================================================================== */
 
-const TREATMENTS = ['Botox', 'Fillers', 'HIFU & Trådlyft', 'HydraFacial', 'Laser & IPL', 'Läppfiller',
-  'Microneedling', 'Skinbooster', 'Övrigt / vet ej'];
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
 function clean(v, max) {
@@ -73,18 +75,18 @@ module.exports = async function handler(req, res) {
 
   if (input.botcheck) { res.status(200).send(JSON.stringify({ ok: true, lead_id: null })); return; } /* spam */
 
-  const treatment = clean(input.treatment, 60);
+  const interest = clean(input.interest, 80) || clean(input.treatment, 80) || 'CO2 laser';
   const name = clean(input.name, 120);
   const phone = clean(input.phone, 40);
   const email = clean(input.email, 160).toLowerCase();
   const message = clean(input.message, 2000);
   const page = clean(input.page, 300);
+  const formPosition = clean(input.form_position, 20);
   const utm = {};
   UTM_KEYS.forEach((k) => { const v = clean(input.utm && input.utm[k], 200); if (v) utm[k] = v; });
   const fromMeta = !!input.fbclid;
 
   const bad = (error) => res.status(422).send(JSON.stringify({ ok: false, error }));
-  if (!TREATMENTS.includes(treatment)) return bad('treatment');
   if (!phone && !email) return bad('contact');
   if (phone && !/^[0-9+() ]{7,}$/.test(phone)) return bad('phone');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('email');
@@ -96,7 +98,7 @@ module.exports = async function handler(req, res) {
   const tags = (process.env.KOMMO_TAGS || 'Webbformulär,CO2 kampanj').split(',').map((s) => s.trim()).filter(Boolean);
   if (fromMeta) tags.push('Meta annons');
   const lead = {
-    name: `Prisfråga: ${treatment}`,
+    name: `Intresse: ${interest}`,
     _embedded: {
       tags: tags.map((t) => ({ name: t })),
       contacts: [{ first_name: name || 'Okänt namn', custom_fields_values: contactFields }]
@@ -114,16 +116,17 @@ module.exports = async function handler(req, res) {
   const leadId = created.data[0].id;
 
   const lines = [
-    'Prisfråga från CO2-sidan',
-    `Behandling: ${treatment}`,
+    'Intresseanmälan från CO2-sidan',
+    `Intresserad av: ${interest}`,
     `Namn: ${name || 'ej angivet'}`,
-    `Telefon: ${phone || 'ej angivet'}`,
     `E-post: ${email || 'ej angivet'}`,
+    phone ? `Telefon: ${phone}` : null,
     `Meddelande: ${message || 'inget'}`,
+    `Formulär: ${formPosition === 'hero' ? 'överst på sidan' : formPosition === 'bottom' ? 'längst ner på sidan' : 'okänt'}`,
     `Sida: ${page || 'okänd'}`,
     `Kampanj: ${UTM_KEYS.filter((k) => utm[k]).map((k) => `${k}=${utm[k]}`).join(', ') || 'ingen UTM'}`,
     `Klick från Meta-annons: ${fromMeta ? 'ja' : 'nej'}`
-  ];
+  ].filter(Boolean);
   const note = await kommo('/api/v4/leads/notes', [{ entity_id: leadId, note_type: 'common', params: { text: lines.join('\n') } }]);
   if (!note.ok) console.error('Kommo notes', note.status, JSON.stringify(note.data).slice(0, 500));
 

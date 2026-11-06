@@ -169,7 +169,7 @@ window.RAYN_CONFIG = {
      ?rayn_debug=1 i URL:en. */
   DEBUG: false,
 
-  /* --- Formuläret "Fråga om pris" (landningssidan) ---------------------
+  /* --- Intresseformuläret (landningssidan) ------------------------------
      Förfrågan skickas till Kommo via Vercel-funktionen api/kommo.js i repots rot.
      KOMMO_ENDPOINT: '/api/kommo' (samma domän). Kommo-token läggs i Vercel, inte här.
      ACCESS_KEY:     (valfritt) Web3Forms-nyckel som reserv om Kommo inte svarar.
@@ -177,7 +177,7 @@ window.RAYN_CONFIG = {
   LEAD_FORM: {
     KOMMO_ENDPOINT: '/api/kommo',
     ACCESS_KEY: '',
-    SUBJECT: 'Ny prisfråga: CO2 laser',
+    SUBJECT: 'Ny intresseanmälan: CO2 laser',
     /* Meta-event vid skickad anmälan. Skickas med lead_type 'intresseformular'
        så att den kan skiljas från klick på Boka-knappar. */
     EVENT: 'Lead'

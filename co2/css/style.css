@@ -1981,3 +1981,26 @@ select.lead-field__input option { color: var(--color-ink); }
 .lp .cookie-dialog__actions .btn { min-height: 3rem; }
 .lp .cookie-dialog__actions .btn--text { grid-column: 1 / -1; justify-self: center; min-height: 2.5rem; }
 .lp .cookie-dialog__close { top: var(--space-4); right: var(--space-4); }
+
+/* ==========================================================================
+   Hero med intresseformulär
+   ========================================================================== */
+.lp .hero-full__content > .lp-hero-grid { max-width: none; }
+.lp-hero-grid { display: grid; gap: var(--space-7); align-items: center; }
+.lp-hero-text > * { max-width: 40rem; }
+.lp .lp-hero-form { scroll-margin-top: calc(var(--header-h) + var(--space-4)); }
+.lp .lp-hero-form .lp-lead__card { padding: clamp(1.25rem, 1rem + 2vw, 2.25rem); }
+.lp .lp-hero-form .lead-form { gap: var(--space-4); }
+.lp .lp-hero-form textarea.lead-field__input { min-height: 5rem; }
+.lp .lp-hero-form .lead-form__title { font-size: clamp(1.6rem, 1.3rem + 1vw, 2rem); }
+.lp .lp-hero-form .lead-success p a,
+.lp .lead-success p a { color: var(--color-accent); font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; white-space: nowrap; }
+.lp .hero-full .lead-field__label,
+.lp .hero-full .lead-form__title,
+.lp .hero-full .lead-success h3 { color: var(--color-ink); text-shadow: none; }
+.lp-lead__small { margin: var(--space-5) 0 0; font-size: var(--fs-xs); color: rgba(248, 243, 236, 0.7); }
+@media (min-width: 1000px) {
+  .lp .hero-full { align-items: center; padding-block: var(--space-8); }
+  .lp-hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(2.5rem, 2rem + 3vw, 5rem); }
+  .lp .hero-full h1 { font-size: clamp(3rem, 1.6rem + 3.6vw, 4.75rem); }
+}
