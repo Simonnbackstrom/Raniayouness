@@ -2004,3 +2004,6 @@ select.lead-field__input option { color: var(--color-ink); }
   .lp-hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(2.5rem, 2rem + 3vw, 5rem); }
   .lp .hero-full h1 { font-size: clamp(3rem, 1.6rem + 3.6vw, 4.75rem); }
 }
+
+/* Tackrutan: bocken centrerad */
+.lp .lead-success__icon { justify-self: center; }
