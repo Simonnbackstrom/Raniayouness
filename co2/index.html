@@ -141,7 +141,16 @@
         <p class="eyebrow eyebrow--light">Kampanj just nu</p>
         <h1 id="hero-title">CO2 laser i Helsingborg till <em>halva priset</em></h1>
         <p class="hero-full__lead">Ansiktet för 1&nbsp;500&nbsp;kr i stället för 2&nbsp;999&nbsp;kr. En avancerad behandling för hudföryngring, utförd av certifierade terapeuter hos oss mitt i Helsingborg.</p>
-        <div class="offer-chip"><p class="price"><span class="lp-now">Just nu</span><strong class="price__now">1&nbsp;500&nbsp;kr</strong> <s class="price__was"><span class="visually-hidden">Ordinarie pris: </span>2&nbsp;999&nbsp;kr</s> </p><span class="offer-chip__meta">60 min</span><span class="lp-save lp-save--chip">Du sparar 1&nbsp;499&nbsp;kr</span></div>
+        <div class="lp-price-card">
+          <div class="lp-price-card__top">
+            <span class="lp-now">Just nu</span>
+            <span class="lp-price-card__label">Ansiktet, 60 min</span>
+          </div>
+          <div class="lp-price-card__row">
+            <p class="lp-price-card__price"><strong>1&nbsp;500&nbsp;kr</strong> <s><span class="visually-hidden">Ordinarie pris: </span>2&nbsp;999&nbsp;kr</s></p>
+            <span class="lp-price-card__save">Spara 1&nbsp;499&nbsp;kr</span>
+          </div>
+        </div>
         <p class="age-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg><span>Behandlingen ges endast till dig som fyllt 18 år.</span></p>
         </div>
         <div class="lp-hero-form" id="hero-form" data-sticky-trigger data-sticky-hide>
@@ -161,13 +170,13 @@
               <input class="lead-field__input" id="hero-name" name="name" type="text" autocomplete="name" enterkeyhint="next" required>
             </div>
             <div class="lead-field">
-              <label class="lead-field__label" for="hero-email">E-post</label>
-              <input class="lead-field__input" id="hero-email" name="email" type="email" inputmode="email" autocomplete="email" enterkeyhint="next" required>
+              <label class="lead-field__label" for="hero-phone">Mobilnummer</label>
+              <input class="lead-field__input" id="hero-phone" name="Telefon" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" pattern="[0-9 +\(\)]{7,}" aria-describedby="hero-phone-hint" required>
+              <p class="lead-field__hint" id="hero-phone-hint">Du får en bekräftelse via SMS och vi ringer upp dig.</p>
             </div>
             <div class="lead-field">
-              <label class="lead-field__label" for="hero-phone">Mobilnummer <span class="lead-field__opt">frivilligt</span></label>
-              <input class="lead-field__input" id="hero-phone" name="Telefon" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" pattern="[0-9 +\(\)]{7,}" aria-describedby="hero-phone-hint">
-              <p class="lead-field__hint" id="hero-phone-hint">Fyll i ditt nummer så får du en bekräftelse via SMS.</p>
+              <label class="lead-field__label" for="hero-email">E-post <span class="lead-field__opt">frivilligt</span></label>
+              <input class="lead-field__input" id="hero-email" name="email" type="email" inputmode="email" autocomplete="email" enterkeyhint="next">
             </div>
             <div class="lead-field">
               <label class="lead-field__label" for="hero-msg">Meddelande <span class="lead-field__opt">frivilligt</span></label>
@@ -686,13 +695,13 @@
               <input class="lead-field__input" id="bottom-name" name="name" type="text" autocomplete="name" enterkeyhint="next" required>
             </div>
             <div class="lead-field">
-              <label class="lead-field__label" for="bottom-email">E-post</label>
-              <input class="lead-field__input" id="bottom-email" name="email" type="email" inputmode="email" autocomplete="email" enterkeyhint="next" required>
+              <label class="lead-field__label" for="bottom-phone">Mobilnummer</label>
+              <input class="lead-field__input" id="bottom-phone" name="Telefon" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" pattern="[0-9 +\(\)]{7,}" aria-describedby="bottom-phone-hint" required>
+              <p class="lead-field__hint" id="bottom-phone-hint">Du får en bekräftelse via SMS och vi ringer upp dig.</p>
             </div>
             <div class="lead-field">
-              <label class="lead-field__label" for="bottom-phone">Mobilnummer <span class="lead-field__opt">frivilligt</span></label>
-              <input class="lead-field__input" id="bottom-phone" name="Telefon" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" pattern="[0-9 +\(\)]{7,}" aria-describedby="bottom-phone-hint">
-              <p class="lead-field__hint" id="bottom-phone-hint">Fyll i ditt nummer så får du en bekräftelse via SMS.</p>
+              <label class="lead-field__label" for="bottom-email">E-post <span class="lead-field__opt">frivilligt</span></label>
+              <input class="lead-field__input" id="bottom-email" name="email" type="email" inputmode="email" autocomplete="email" enterkeyhint="next">
             </div>
             <div class="lead-field">
               <label class="lead-field__label" for="bottom-msg">Meddelande <span class="lead-field__opt">frivilligt</span></label>

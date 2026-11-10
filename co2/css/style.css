@@ -2007,3 +2007,66 @@ select.lead-field__input option { color: var(--color-ink); }
 
 /* Tackrutan: bocken centrerad */
 .lp .lead-success__icon { justify-self: center; }
+
+/* ==========================================================================
+   Priskort i hero
+   ========================================================================== */
+.lp-price-card {
+  width: 100%; max-width: 30rem;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border-radius: 1.25rem;
+  background: rgba(29, 20, 18, 0.45);
+  border: 1px solid rgba(228, 196, 157, 0.4);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 24px 50px -30px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: lining-nums; font-feature-settings: 'lnum' 1;
+}
+.lp-price-card__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-3); }
+.lp-price-card__top .lp-now { margin: 0; }
+.lp-price-card__label { font-size: var(--fs-sm); color: rgba(248, 243, 236, 0.85); letter-spacing: 0.01em; }
+.lp-price-card__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.lp-price-card__price { margin: 0; display: flex; align-items: baseline; gap: var(--space-3); line-height: 1; }
+.lp-price-card__price strong { font-family: var(--font-serif); font-weight: 600; font-size: clamp(2.5rem, 2rem + 2vw, 3.25rem); color: var(--color-cream); letter-spacing: -0.01em; }
+.lp-price-card__price s { font-size: 1.05rem; color: rgba(248, 243, 236, 0.6); text-decoration-thickness: 1px; }
+.lp-price-card__save {
+  display: inline-flex; align-items: center;
+  padding: 0.45rem 0.85rem; border-radius: var(--radius-pill);
+  background: var(--color-gold-light); color: var(--color-ink);
+  font: 700 var(--fs-xs)/1 var(--font-sans); letter-spacing: 0.02em; white-space: nowrap;
+}
+
+/* Priskort i hero: vit variant */
+.lp-price-card { background: var(--color-white); border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.75); }
+.lp-price-card__label { color: var(--color-taupe-text); }
+.lp-price-card__price strong { color: var(--lp-red); text-shadow: none; }
+.lp-price-card__price s { color: var(--color-taupe-text); }
+.lp-price-card__save { background: var(--color-accent); color: var(--color-cream); }
+.lp .hero-full .lp-price-card * { text-shadow: none; }
+
+/* Priskort i hero: vit, snyggare detaljer */
+.lp-price-card {
+  position: relative; overflow: hidden;
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  border-radius: 1.5rem;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 2px 6px rgba(0, 0, 0, 0.12), 0 30px 60px -28px rgba(0, 0, 0, 0.85);
+}
+.lp-price-card__top { padding-bottom: 0; margin-bottom: var(--space-4); border-bottom: 0; }
+.lp-price-card .lp-now { border-radius: var(--radius-pill); padding: 0.38rem 0.75rem; letter-spacing: 0.08em; }
+.lp-price-card__label { font-weight: 500; letter-spacing: 0.02em; }
+.lp-price-card__price { gap: var(--space-3); }
+.lp-price-card__price strong { font-size: clamp(2.6rem, 2rem + 2.4vw, 3.4rem); letter-spacing: -0.02em; }
+.lp-price-card__price s { font-size: 1rem; text-decoration-color: rgba(180, 35, 24, 0.7); text-decoration-thickness: 2px; }
+.lp-price-card__save { padding: 0.6rem 1rem; box-shadow: 0 8px 18px -10px rgba(75, 42, 87, 0.9); }
+
+/* Priskort i hero: mobil */
+@media (max-width: 520px) {
+  .lp-price-card { padding: var(--space-4); border-radius: 1.25rem; margin-bottom: var(--space-5); }
+  .lp-price-card__top { gap: var(--space-2); padding-bottom: 0; margin-bottom: var(--space-4); }
+  .lp-price-card__label { font-size: 0.8125rem; }
+  .lp-price-card__row { flex-wrap: nowrap; align-items: flex-end; gap: var(--space-3); }
+  .lp-price-card__price { flex-direction: column-reverse; align-items: flex-start; gap: 0.35rem; }
+  .lp-price-card__price strong { font-size: clamp(2.3rem, 1.4rem + 4.5vw, 2.75rem); }
+  .lp-price-card__price s { font-size: 0.875rem; }
+  .lp-price-card__save { flex-shrink: 0; padding: 0.55rem 0.8rem; font-size: 0.75rem; margin-bottom: 0.2rem; }
+}

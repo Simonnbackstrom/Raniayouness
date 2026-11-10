@@ -123,6 +123,7 @@
     function messageFor(field) {
       if (field.validity.valueMissing) {
         if (field.type === 'email') return 'Fyll i din e-post så att vi kan kontakta dig.';
+        if (field.type === 'tel') return 'Fyll i ditt mobilnummer så att vi kan kontakta dig.';
         if (field.name === 'name') return 'Fyll i ditt namn.';
         return 'Fyll i det här fältet.';
       }
