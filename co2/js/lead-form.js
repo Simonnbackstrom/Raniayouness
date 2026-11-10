@@ -2,7 +2,7 @@
    RAYN – intresseformulär (landningssidan CO2)
    --------------------------------------------------------------------------
    Sidan har samma formulär på två ställen: överst (hero) och längst ner.
-   Fält: namn, e-post, meddelande + dolt fält "Intresse" som fylls i när
+   Fält: namn, e-post, mobilnummer (frivilligt), meddelande + dolt fält "Intresse" som fylls i när
    kunden klickar på t.ex. "Visa intresse" vid ett priskort.
 
    Skickas till Kommo via Vercel-funktionen api/kommo.js i repots rot.
@@ -34,7 +34,7 @@
   var started = {};
 
   /* --- Avancerad matchning för Meta ---------------------------------
-     Mejl och förnamn normaliseras och krypteras med SHA-256 i
+     Mejl, mobilnummer och förnamn normaliseras och krypteras med SHA-256 i
      webbläsaren. tracking.js skickar dem bara om besökaren har godkänt
      marknadsföringscookies. Meddelandet skickas aldrig. */
   function sha256(str) {
@@ -127,6 +127,7 @@
         return 'Fyll i det här fältet.';
       }
       if (field.validity.typeMismatch && field.type === 'email') return 'Skriv en giltig e-postadress, t.ex. namn@exempel.se.';
+      if (field.validity.patternMismatch && field.type === 'tel') return 'Skriv ett giltigt mobilnummer, t.ex. 070 123 45 67.';
       return '';
     }
 
@@ -180,6 +181,7 @@
         interest: val('Intresse') || 'CO2 laser',
         name: val('name'),
         email: val('email'),
+        phone: val('Telefon'),
         message: val('Meddelande'),
         form_position: position,
         page: location.origin + location.pathname,
@@ -219,6 +221,7 @@
           'Sida': payload.page,
           'Kampanjkälla': [u.utm_source, u.utm_campaign, u.utm_content].filter(Boolean).join(', ') || 'Okänd'
         };
+        if (payload.phone) data['Telefon'] = payload.phone;
         if (payload.message) data['Meddelande'] = payload.message;
         if (payload.fbclid) data['Klick från Meta'] = 'Ja';
         return post(WEB3FORMS, data);

@@ -19,6 +19,25 @@
      ALLOWED_ORIGINS         Extra domäner som får skicka (valfritt). Den egna
                              domänen är alltid tillåten.
 
+   SMS via Twilio (valfritt – utan de tre första skickas inga SMS):
+     TWILIO_ACCOUNT_SID           Account SID från Twilio Console (börjar med AC)
+     TWILIO_AUTH_TOKEN            Auth Token från Twilio Console
+     TWILIO_MESSAGING_SERVICE_SID Messaging Service "RAYN" (börjar med MG)
+     RAYN_NOTIFY_PHONE            (valfritt) Ranias mobil, t.ex. +46701234567.
+                                  Får ett SMS per nytt lead.
+     SMS_TEXT                     (valfritt) Reservtext om mallen i Kommo saknas.
+
+   SMS-TEXTEN ÄNDRAS I KOMMO
+     Första gången funktionen körs skapar den en meddelandemall i Kommo som
+     heter "SMS bekräftelse webbformulär". Ändra texten där:
+       Kommo → Settings → Chat settings → Templates (Mallar)
+     {{contact.name}} eller {namn} byts mot kundens förnamn.
+     Finns ingen mall används SMS_TEXT, annars standardtexten nedan.
+
+   SMS skickas efter att leadet skapats i Kommo. Misslyckas ett SMS loggas
+   felet, men leadet och svaret till kunden påverkas inte. Svarar kunden på
+   SMS:et hamnar svaret i Kommos chatt via Twilio-integrationen.
+
    Tar emot: { name, email, phone?, message?, interest?, treatment?,
                form_position?, page?, utm?, fbclid? }
    Kräver e-post eller telefon.
@@ -56,6 +75,80 @@ async function kommo(path, body, attempt = 1) {
     return kommo(path, body, attempt + 1);
   }
   return { ok: res.ok, status: res.status, data };
+}
+
+/* Svenskt nummer → E.164 (+46…). Returnerar '' om numret inte ser giltigt ut. */
+function toE164(p) {
+  let d = String(p || '').replace(/[^\d+]/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = '+' + d.slice(2);
+  else if (d.startsWith('0')) d = '+46' + d.slice(1);
+  else if (!d.startsWith('+')) d = '+' + d;
+  return /^\+\d{8,15}$/.test(d) ? d : '';
+}
+
+const DEFAULT_SMS = 'Hej {{contact.name}}! Tack för din intresseanmälan till RAYN Beauty Spa & Wellness. Vi hör av oss inom kort. Frågor? Ring 073 649 76 52.';
+const TEMPLATE_EXTERNAL_ID = 'rayn-sms-bekraftelse';
+const TEMPLATE_NAME = 'SMS bekräftelse webbformulär';
+
+async function kommoGet(path) {
+  const r = await fetch(`https://${process.env.KOMMO_SUBDOMAIN}.kommo.com${path}`, {
+    headers: { Authorization: `Bearer ${process.env.KOMMO_TOKEN}` }
+  });
+  if (r.status === 204) return { ok: true, data: null };
+  const text = await r.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  return { ok: r.ok, status: r.status, data };
+}
+
+/* Hämtar SMS-texten från Kommo-mallen. Skapar mallen första gången.
+   Faller tillbaka på SMS_TEXT eller standardtexten om något går fel. */
+async function getSmsText() {
+  const fallback = (process.env.SMS_TEXT || '').trim() || DEFAULT_SMS;
+  try {
+    const found = await kommoGet(`/api/v4/chats/templates?filter[external_id][]=${TEMPLATE_EXTERNAL_ID}&limit=50`);
+    const list = found.data && found.data._embedded && found.data._embedded.chat_templates;
+    const tpl = Array.isArray(list) && list.find((x) => x.external_id === TEMPLATE_EXTERNAL_ID);
+    if (tpl && typeof tpl.content === 'string' && tpl.content.trim()) return tpl.content.trim();
+    if (found.ok && !tpl) {
+      const made = await kommo('/api/v4/chats/templates', [{
+        name: TEMPLATE_NAME, content: fallback, is_editable: true, type: 'amocrm', external_id: TEMPLATE_EXTERNAL_ID
+      }]);
+      if (!made.ok) console.error('Kommo skapa mall', made.status, JSON.stringify(made.data).slice(0, 400));
+    } else if (!found.ok) {
+      console.error('Kommo hämta mall', found.status, JSON.stringify(found.data).slice(0, 400));
+    }
+  } catch (e) {
+    console.error('Kommo mall', e && e.message);
+  }
+  return fallback;
+}
+
+function fillText(tpl, firstName) {
+  return tpl
+    .replace(/\{\{\s*contact\.name\s*\}\}|\{namn\}/gi, firstName || '')
+    .replace(/Hej\s+!/g, 'Hej!')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+async function sendSms(to, message) {
+  const sid = process.env.TWILIO_ACCOUNT_SID, token = process.env.TWILIO_AUTH_TOKEN, mg = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  if (!sid || !token || !mg || !to) return { skipped: true };
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
+      method: 'POST',
+      headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ To: to, MessagingServiceSid: mg, Body: message }).toString()
+    });
+    const text = await r.text();
+    if (!r.ok) { console.error('Twilio', r.status, text.slice(0, 300)); return { ok: false }; }
+    return { ok: true };
+  } catch (e) {
+    console.error('Twilio fetch', e && e.message);
+    return { ok: false };
+  }
 }
 
 module.exports = async function handler(req, res) {
@@ -127,8 +220,23 @@ module.exports = async function handler(req, res) {
     `Kampanj: ${UTM_KEYS.filter((k) => utm[k]).map((k) => `${k}=${utm[k]}`).join(', ') || 'ingen UTM'}`,
     `Klick från Meta-annons: ${fromMeta ? 'ja' : 'nej'}`
   ].filter(Boolean);
+
+  /* SMS: bekräftelse till kunden och notis till Rania (skickas parallellt) */
+  const firstName = (name.split(/\s+/)[0] || '').slice(0, 20);
+  const customerPhone = toE164(phone);
+  const contactInfo = [phone, email].filter(Boolean).join(', ');
+  const smsText = customerPhone && process.env.TWILIO_ACCOUNT_SID ? fillText(await getSmsText(), firstName) : '';
+  const [smsCustomer, smsRania] = await Promise.all([
+    sendSms(customerPhone, smsText),
+    sendSms(toE164(process.env.RAYN_NOTIFY_PHONE),
+      `Nytt lead från CO2-sidan: ${(name || 'Okänt namn').slice(0, 40)}, ${contactInfo.slice(0, 60)}. Intresse: ${interest.slice(0, 40)}. Se Kommo.`)
+  ]);
+  if (smsCustomer.ok) lines.push('SMS-bekräftelse skickad till kunden');
+  else if (phone && !customerPhone) lines.push('Ingen SMS-bekräftelse: ogiltigt mobilnummer');
+
   const note = await kommo('/api/v4/leads/notes', [{ entity_id: leadId, note_type: 'common', params: { text: lines.join('\n') } }]);
   if (!note.ok) console.error('Kommo notes', note.status, JSON.stringify(note.data).slice(0, 500));
+  if (smsRania.skipped === undefined && !smsRania.ok) console.error('Notis-SMS till Rania misslyckades');
 
   res.status(200).send(JSON.stringify({ ok: true, lead_id: leadId }));
 };
