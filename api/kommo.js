@@ -88,6 +88,7 @@ function toE164(p) {
 }
 
 const DEFAULT_SMS = 'Hej {{contact.name}}! Tack för din intresseanmälan till RAYN Beauty Spa & Wellness. Vi hör av oss inom kort. Frågor? Ring 073 649 76 52.';
+const SMS_OPT_OUT_LINE = 'Reply STOP to unsubscribe.';
 const TEMPLATE_EXTERNAL_ID = 'rayn-sms-bekraftelse';
 const TEMPLATE_NAME = 'SMS bekräftelse webbformulär';
 
@@ -126,11 +127,12 @@ async function getSmsText() {
 }
 
 function fillText(tpl, firstName) {
-  return tpl
+  const message = tpl
     .replace(/\{\{\s*contact\.name\s*\}\}|\{namn\}/gi, firstName || '')
     .replace(/Hej\s+!/g, 'Hej!')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
+  return message.endsWith(SMS_OPT_OUT_LINE) ? message : `${message}\n\n${SMS_OPT_OUT_LINE}`;
 }
 
 async function sendSms(to, message) {
