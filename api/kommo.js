@@ -25,14 +25,14 @@
      TWILIO_MESSAGING_SERVICE_SID Messaging Service "RAYN" (börjar med MG)
      RAYN_NOTIFY_PHONE            (valfritt) Ranias mobil, t.ex. +46701234567.
                                   Får ett SMS per nytt lead.
-     SMS_TEXT                     (valfritt) Reservtext om mallen i Kommo saknas.
+     SMS_TEXT                     (valfritt) SMS-text som har företräde framför Kommo-mallen.
 
    SMS-TEXTEN ÄNDRAS I KOMMO
-     Första gången funktionen körs skapar den en meddelandemall i Kommo som
-     heter "SMS bekräftelse webbformulär". Ändra texten där:
+     Om SMS_TEXT är tom hämtas mallen "SMS bekräftelse webbformulär" i Kommo.
+     Funktionen skapar mallen vid behov. Ändra texten där:
        Kommo → Settings → Chat settings → Templates (Mallar)
      {{contact.name}} eller {namn} byts mot kundens förnamn.
-     Finns ingen mall används SMS_TEXT, annars standardtexten nedan.
+     Finns ingen mall används standardtexten nedan.
 
    SMS skickas efter att leadet skapats i Kommo. Misslyckas ett SMS loggas
    felet, men leadet och svaret till kunden påverkas inte. Svarar kunden på
@@ -102,10 +102,10 @@ async function kommoGet(path) {
   return { ok: r.ok, status: r.status, data };
 }
 
-/* Hämtar SMS-texten från Kommo-mallen. Skapar mallen första gången.
-   Faller tillbaka på SMS_TEXT eller standardtexten om något går fel. */
+/* En angiven SMS_TEXT har företräde. Annars hämtas texten från Kommo. */
 async function getSmsText() {
-  const fallback = (process.env.SMS_TEXT || '').trim() || DEFAULT_SMS;
+  const configuredText = (process.env.SMS_TEXT || '').trim();
+  if (configuredText) return configuredText;
   try {
     const found = await kommoGet(`/api/v4/chats/templates?filter[external_id][]=${TEMPLATE_EXTERNAL_ID}&limit=50`);
     const list = found.data && found.data._embedded && found.data._embedded.chat_templates;
@@ -113,7 +113,7 @@ async function getSmsText() {
     if (tpl && typeof tpl.content === 'string' && tpl.content.trim()) return tpl.content.trim();
     if (found.ok && !tpl) {
       const made = await kommo('/api/v4/chats/templates', [{
-        name: TEMPLATE_NAME, content: fallback, is_editable: true, type: 'amocrm', external_id: TEMPLATE_EXTERNAL_ID
+        name: TEMPLATE_NAME, content: DEFAULT_SMS, is_editable: true, type: 'amocrm', external_id: TEMPLATE_EXTERNAL_ID
       }]);
       if (!made.ok) console.error('Kommo skapa mall', made.status, JSON.stringify(made.data).slice(0, 400));
     } else if (!found.ok) {
@@ -122,7 +122,7 @@ async function getSmsText() {
   } catch (e) {
     console.error('Kommo mall', e && e.message);
   }
-  return fallback;
+  return DEFAULT_SMS;
 }
 
 function fillText(tpl, firstName) {
