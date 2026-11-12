@@ -270,7 +270,8 @@ module.exports = async function handler(req, res) {
   const email = clean(input.email, 160).toLowerCase();
   const message = clean(input.message, 2000);
   const page = clean(input.page, 300);
-  const followUpConsent = input.sms_follow_up === true && Boolean(phone);
+  /* Uppföljning av kundens egen intresseanmälan (beskrivs i integritetspolicyn). Kunden kan svara STOP. */
+  const followUpConsent = Boolean(phone);
   const consentedAt = new Date();
   const formPosition = clean(input.form_position, 20);
   const utm = {};
@@ -339,7 +340,7 @@ module.exports = async function handler(req, res) {
   else if (phone && !customerPhone) lines.push('Ingen SMS-bekräftelse: ogiltigt mobilnummer');
   lines.push(`Skickad till Meta (Conversions API): ${metaResult.ok ? 'ja' : metaResult.skipped ? `nej – ${metaResult.skipped}` : 'nej – fel, se Vercel-loggen'}`);
   if (followUpConsent) {
-    lines.push(`Samtycke till upp till tre SMS om CO2-kampanjen: ${consentedAt.toISOString()}`);
+    lines.push(`Uppföljning av intresseanmälan: upp till tre SMS om CO2-kampanjen (svara STOP för att avsluta). Anmäld ${consentedAt.toISOString()}`);
     if (smsCustomer.ok) {
       try {
         await enrollFollowUp(customerPhone, name, smsCustomer.sid, consentedAt, leadId);

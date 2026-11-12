@@ -96,7 +96,14 @@
     if (!a) return;
     var interest = a.getAttribute('data-interest');
     Array.prototype.forEach.call(forms, function (f) {
-      if (f.elements['Intresse']) f.elements['Intresse'].value = interest;
+      var field = f.elements['Intresse'];
+      if (field) {
+        /* Rullistan: lägg till valet om det inte redan finns (t.ex. från före/efter-bilderna) */
+        if (field.tagName === 'SELECT' && !Array.prototype.some.call(field.options, function (o) { return o.value === interest; })) {
+          field.add(new Option(interest.replace(/^CO2 laser, /, '').replace(/^./, function (c) { return c.toUpperCase(); }), interest));
+        }
+        field.value = interest;
+      }
       var msg = f.elements['Meddelande'];
       if (msg && (!msg.value.trim() || msg.getAttribute('data-prefilled') === '1')) {
         msg.value = 'Jag är intresserad av ' + interest.replace(/^CO2 laser, /, 'CO2 laser för ') + '.';

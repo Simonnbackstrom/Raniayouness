@@ -76,10 +76,10 @@
 
   /* ---------- Resultat på kampanjsidor ---------- */
   var campaign = document.body.getAttribute('data-campaign');
-  var campaignResults = document.querySelector('[data-campaign-results]');
-  if (campaign && campaignResults) {
+  var campaignResults = document.querySelectorAll('[data-campaign-results]');
+  if (campaign && campaignResults.length) {
     var show = cfg.SHOW_BEFORE_AFTER_ON_CAMPAIGNS || {};
-    campaignResults.hidden = show[campaign] !== true;
+    Array.prototype.forEach.call(campaignResults, function (el) { el.hidden = show[campaign] !== true; });
   }
 
   /* ---------- Scroll-animationer ---------- */
