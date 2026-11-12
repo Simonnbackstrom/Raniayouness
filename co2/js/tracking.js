@@ -14,6 +14,10 @@
    5. Varje event får ett unikt event_id och sparas i window.RAYN_EVENTS
       (samma struktur som Conversions API förväntar sig) så att server-events
       kan dedupliceras mot pixeln. Se sendToCapi() och README.md.
+   6. Testläge: öppna sidan en gång med ?rayn_test=1 så skickas INGA events
+      till Meta från den webbläsaren (sparas tills ?rayn_test=0). Formulär-
+      anmälningar hamnar ändå i Kommo, men taggas "Test". Använd det på alla
+      egna datorer/mobiler så att era tester inte räknas som leads.
    ========================================================================== */
 (function () {
   'use strict';
@@ -33,6 +37,33 @@
 
   function log() {
     if (DEBUG && window.console) console.log.apply(console, ['[RAYN]'].concat([].slice.call(arguments)));
+  }
+
+  /* ---------------------------------------------------------------------
+     0. Testläge (intern trafik)
+     --------------------------------------------------------------------- */
+  var TEST_KEY = 'rayn_test';
+
+  (function readTestParam() {
+    var v = new URLSearchParams(location.search).get('rayn_test');
+    try {
+      if (v === '1') localStorage.setItem(TEST_KEY, '1');
+      else if (v === '0') localStorage.removeItem(TEST_KEY);
+    } catch (e) { /* ignoreras */ }
+  })();
+
+  function isTestMode() {
+    try { return localStorage.getItem(TEST_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function showTestBadge() {
+    if (!isTestMode() || document.getElementById('rayn-test-badge')) return;
+    var b = document.createElement('div');
+    b.id = 'rayn-test-badge';
+    b.textContent = 'Testläge – skickas inte till Meta';
+    b.setAttribute('style', 'position:fixed;left:8px;bottom:8px;z-index:99999;padding:4px 8px;border-radius:4px;' +
+      'background:#b00020;color:#fff;font:600 11px/1.3 system-ui,sans-serif;pointer-events:none;opacity:.85');
+    document.body.appendChild(b);
   }
 
   /* ---------------------------------------------------------------------
@@ -192,11 +223,15 @@
    * @param {object} data  custom_data, t.ex. { content_name: 'Hydrafacial' }
    */
   /* userData (valfritt): SHA-256-krypterade kontaktuppgifter för avancerad matchning,
-     t.ex. { em: '<hash>', ph: '<hash>' }. Skickas bara om besökaren samtyckt. */
-  function track(name, data, userData) {
+     t.ex. { em: '<hash>', ph: '<hash>' }. Skickas bara om besökaren samtyckt.
+     opts (valfritt): { eventId: 'Lead.<uuid>', skipCapi: true }
+       eventId  – använd ett redan skapat id (så att servern kan skicka samma)
+       skipCapi – servern skickar själv eventet till Conversions API */
+  function track(name, data, userData, opts) {
+    opts = opts || {};
     var evt = {
       event_name: name,
-      event_id: makeEventId(name),
+      event_id: opts.eventId || makeEventId(name),
       event_time: Math.floor(Date.now() / 1000),
       event_source_url: location.href.split('#')[0],
       action_source: 'website',
@@ -207,13 +242,16 @@
         client_user_agent: navigator.userAgent
       },
       sent_to_pixel: false,
-      sent_to_capi: false
+      sent_to_capi: false,
+      test_mode: isTestMode()
     };
     if (userData && hasConsent()) {
       Object.keys(userData).forEach(function (k) { if (userData[k]) evt.user_data[k] = userData[k]; });
     }
 
-    if (hasConsent() && loadPixel()) {
+    if (evt.test_mode) {
+      log('Testläge – skickas inte till Meta:', name, evt);
+    } else if (hasConsent() && loadPixel()) {
       if (userData) {
         var am = {};
         Object.keys(userData).forEach(function (k) { if (userData[k]) am[k] = userData[k]; });
@@ -222,7 +260,7 @@
       var isStandard = STANDARD_EVENTS.indexOf(name) !== -1;
       window.fbq(isStandard ? 'track' : 'trackCustom', name, evt.custom_data, { eventID: evt.event_id });
       evt.sent_to_pixel = true;
-      evt.sent_to_capi = sendToCapi(evt);
+      evt.sent_to_capi = opts.skipCapi ? false : sendToCapi(evt);
     }
 
     EVENTS.push(evt);
@@ -361,8 +399,26 @@
      Start
      --------------------------------------------------------------------- */
   decorateBookingLinks();
+  showTestBadge();
   sendPageEvents();
 
   /* Publikt API för egna events, t.ex. RAYN_TRACK('Schedule', {...}) */
   window.RAYN_TRACK = track;
+  window.RAYN_MAKE_EVENT_ID = makeEventId;
+
+  /* Det formuläret skickar med till servern så att api/kommo.js kan skicka
+     samma Lead till Conversions API (deduplicerat via event_id). */
+  window.RAYN_META_CONTEXT = function () {
+    var consent = hasConsent();
+    return {
+      consent: consent,
+      test: isTestMode(),
+      fbp: consent ? getCookie('_fbp') : null,
+      fbc: consent ? getCookie('_fbc') : null,
+      /* fbclid används på servern för att bygga fbc om cookien saknas */
+      fbclid: consent && attribution && attribution.fbclid || null,
+      fbclid_ts: consent && attribution && attribution.fbclid_ts || null,
+      event_source_url: location.href.split('#')[0]
+    };
+  };
 })();

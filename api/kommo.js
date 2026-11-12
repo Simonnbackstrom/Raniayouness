@@ -38,10 +38,28 @@
    felet, men leadet och svaret till kunden påverkas inte. Svarar kunden på
    SMS:et hamnar svaret i Kommos chatt via Twilio-integrationen.
 
+   META CONVERSIONS API (valfritt – utan de två första skickas inget):
+     META_PIXEL_ID          Samma pixel-ID som i co2/js/config.js
+     META_CAPI_TOKEN        Åtkomsttoken: Events Manager → pixeln →
+                            Inställningar → Conversions API → Generera åtkomsttoken
+     META_API_VERSION       (valfritt) standard v25.0
+     META_TEST_EVENT_CODE   (valfritt) kod från fliken Testhändelser, t.ex.
+                            TEST12345. Ta bort när testet är klart!
+
+   Lead skickas till Meta från servern när leadet skapats i Kommo, men BARA om
+   besökaren godkänt marknadsföringscookies och inte är i testläge
+   (?rayn_test=1). Samma event_id som pixeln använder skickas med, så Meta
+   deduplicerar pixel + server till en händelse. Kontaktuppgifter skickas
+   bara SHA-256-krypterade. Resultatet står i anteckningen i Kommo.
+
    Tar emot: { name, email, phone?, message?, interest?, treatment?,
-               form_position?, page?, utm?, fbclid? }
+               form_position?, page?, utm?, fbclid?, test?,
+               meta?: { event_name, event_id, consent, fbp, fbc, fbclid,
+                        fbclid_ts, event_source_url, custom_data } }
    Kräver e-post eller telefon.
    ========================================================================== */
+
+const crypto = require('crypto');
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
@@ -151,6 +169,114 @@ async function sendSms(to, message) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Meta Conversions API
+   --------------------------------------------------------------------------- */
+function sha256(v) {
+  return v ? crypto.createHash('sha256').update(v).digest('hex') : '';
+}
+
+/* Samma normalisering som i co2/js/lead-form.js (Metas krav: bara siffror, med landskod) */
+function metaPhone(p) {
+  let d = String(p || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  else if (d.startsWith('0')) d = '46' + d.slice(1);
+  return d;
+}
+
+function metaFirstName(n) {
+  return String(n || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^\p{L}]/gu, '');
+}
+
+function clientIp(req) {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return fwd || String(req.headers['x-real-ip'] || '').trim() || (req.socket && req.socket.remoteAddress) || '';
+}
+
+/* Läser och kontrollerar meta-delen från formuläret */
+function readMeta(m) {
+  if (!m || typeof m !== 'object') return null;
+  const eventId = clean(m.event_id, 120);
+  if (!/^[A-Za-z]+\.[A-Za-z0-9-]{8,100}$/.test(eventId)) return null;
+  const cookie = (v) => { const s = clean(v, 300); return /^fb\.\d\.\d+\.[\w.\-]+$/.test(s) ? s : ''; };
+  const custom = {};
+  if (m.custom_data && typeof m.custom_data === 'object') {
+    Object.keys(m.custom_data).slice(0, 15).forEach((k) => {
+      const v = clean(m.custom_data[k], 200);
+      if (/^[a-z_]{1,40}$/.test(k) && v) custom[k] = v;
+    });
+  }
+  const fbclid = clean(m.fbclid, 500);
+  const ts = Number(m.fbclid_ts) || 0;
+  return {
+    eventName: /^[A-Za-z]{2,40}$/.test(String(m.event_name || '')) ? m.event_name : 'Lead',
+    eventId,
+    consent: m.consent === true,
+    fbp: cookie(m.fbp),
+    /* Saknas _fbc-cookien men vi har fbclid från landningen: bygg fbc enligt Metas format */
+    fbc: cookie(m.fbc) || (fbclid && /^[\w-]+$/.test(fbclid) ? `fb.1.${ts > 0 ? ts : Date.now()}.${fbclid}` : ''),
+    sourceUrl: /^https:\/\//.test(clean(m.event_source_url, 500)) ? clean(m.event_source_url, 500) : '',
+    custom
+  };
+}
+
+async function sendMetaLead(req, meta, contact) {
+  const pixel = process.env.META_PIXEL_ID, token = process.env.META_CAPI_TOKEN;
+  if (!pixel || !token) return { skipped: 'ej konfigurerat i Vercel' };
+  if (!meta) return { skipped: 'event_id saknas' };
+  if (contact.test) return { skipped: 'testläge' };
+  if (!meta.consent) return { skipped: 'inget samtycke till marknadsföring' };
+
+  const user = {
+    client_ip_address: clientIp(req) || undefined,
+    client_user_agent: clean(req.headers['user-agent'], 500) || undefined,
+    fbp: meta.fbp || undefined,
+    fbc: meta.fbc || undefined
+  };
+  const em = sha256(contact.email);
+  const ph = sha256(metaPhone(contact.phone));
+  const fn = sha256(metaFirstName(contact.name));
+  if (em) user.em = [em];
+  if (ph) user.ph = [ph];
+  if (fn) user.fn = [fn];
+  if (em || ph) user.country = [sha256('se')];
+
+  const body = {
+    data: [{
+      event_name: meta.eventName,
+      event_id: meta.eventId,
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: meta.sourceUrl || contact.page || undefined,
+      action_source: 'website',
+      user_data: user,
+      custom_data: meta.custom
+    }],
+    access_token: token
+  };
+  if (process.env.META_TEST_EVENT_CODE) body.test_event_code = process.env.META_TEST_EVENT_CODE.trim();
+
+  const version = (process.env.META_API_VERSION || 'v25.0').trim();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const r = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(pixel)}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+    const text = await r.text();
+    if (!r.ok) { console.error('Meta CAPI', r.status, text.slice(0, 500)); return { ok: false }; }
+    return { ok: true };
+  } catch (e) {
+    console.error('Meta CAPI fetch', e && e.message);
+    return { ok: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -177,7 +303,10 @@ module.exports = async function handler(req, res) {
   const formPosition = clean(input.form_position, 20);
   const utm = {};
   UTM_KEYS.forEach((k) => { const v = clean(input.utm && input.utm[k], 200); if (v) utm[k] = v; });
-  const fromMeta = !!input.fbclid;
+  const isTest = input.test === true;
+  const meta = readMeta(input.meta);
+  /* Från Meta = klick med fbclid ELLER UTM-taggad Meta-annons */
+  const fromMeta = !!input.fbclid || /^(facebook|fb|instagram|ig|meta)$/i.test(utm.utm_source || '');
 
   const bad = (error) => res.status(422).send(JSON.stringify({ ok: false, error }));
   if (!phone && !email) return bad('contact');
@@ -189,7 +318,8 @@ module.exports = async function handler(req, res) {
   if (email) contactFields.push({ field_code: 'EMAIL', values: [{ value: email, enum_code: 'WORK' }] });
 
   const tags = (process.env.KOMMO_TAGS || 'Webbformulär,CO2 kampanj').split(',').map((s) => s.trim()).filter(Boolean);
-  if (fromMeta) tags.push('Meta annons');
+  if (fromMeta && !isTest) tags.push('Meta annons');
+  if (isTest) tags.push('Test');
   const lead = {
     name: `Intresse: ${interest}`,
     _embedded: {
@@ -209,6 +339,7 @@ module.exports = async function handler(req, res) {
   const leadId = created.data[0].id;
 
   const lines = [
+    isTest ? 'TESTANMÄLAN (skickad i testläge, räknas inte i Meta)' : null,
     'Intresseanmälan från CO2-sidan',
     `Intresserad av: ${interest}`,
     `Namn: ${name || 'ej angivet'}`,
@@ -221,18 +352,20 @@ module.exports = async function handler(req, res) {
     `Klick från Meta-annons: ${fromMeta ? 'ja' : 'nej'}`
   ].filter(Boolean);
 
-  /* SMS: bekräftelse till kunden och notis till Rania (skickas parallellt) */
+  /* SMS (bekräftelse till kunden + notis till Rania) och Lead till Meta, parallellt */
   const firstName = (name.split(/\s+/)[0] || '').slice(0, 20);
   const customerPhone = toE164(phone);
   const contactInfo = [phone, email].filter(Boolean).join(', ');
   const smsText = customerPhone && process.env.TWILIO_ACCOUNT_SID ? fillText(await getSmsText(), firstName) : '';
-  const [smsCustomer, smsRania] = await Promise.all([
+  const [smsCustomer, smsRania, metaResult] = await Promise.all([
     sendSms(customerPhone, smsText),
     sendSms(toE164(process.env.RAYN_NOTIFY_PHONE),
-      `Nytt lead från CO2-sidan: ${(name || 'Okänt namn').slice(0, 40)}, ${contactInfo.slice(0, 60)}. Intresse: ${interest.slice(0, 40)}. Se Kommo.`)
+      `${isTest ? 'TEST – ' : ''}Nytt lead från CO2-sidan: ${(name || 'Okänt namn').slice(0, 40)}, ${contactInfo.slice(0, 60)}. Intresse: ${interest.slice(0, 40)}. Se Kommo.`),
+    sendMetaLead(req, meta, { email, phone, name, page, test: isTest })
   ]);
   if (smsCustomer.ok) lines.push('SMS-bekräftelse skickad till kunden');
   else if (phone && !customerPhone) lines.push('Ingen SMS-bekräftelse: ogiltigt mobilnummer');
+  lines.push(`Skickad till Meta (Conversions API): ${metaResult.ok ? 'ja' : metaResult.skipped ? `nej – ${metaResult.skipped}` : 'nej – fel, se Vercel-loggen'}`);
 
   const note = await kommo('/api/v4/leads/notes', [{ entity_id: leadId, note_type: 'common', params: { text: lines.join('\n') } }]);
   if (!note.ok) console.error('Kommo notes', note.status, JSON.stringify(note.data).slice(0, 500));

@@ -21,6 +21,14 @@
      Lead           när en anmälan har tagits emot (en gång per anmälan)
    Båda med form_position 'hero' eller 'bottom'. Namn och e-post skickas
    aldrig i klartext till Meta (se avancerad matchning nedan).
+
+   LeadMetaAnnons  skickas dessutom när besökaren kom från en Meta-annons
+                   (fbclid eller utm_source=facebook/instagram). Lead har även
+                   parametern traffic_source = 'meta_annons' eller 'ovrigt'.
+
+   Conversions API: samma event_id skickas till api/kommo.js som (om besökaren
+   samtyckt och det inte är testläge) skickar Lead från servern till Meta.
+   Meta deduplicerar pixel + server till EN händelse.
    ========================================================================== */
 (function () {
   'use strict';
@@ -67,8 +75,19 @@
     try { return JSON.parse(sessionStorage.getItem('rayn_attribution')) || {}; } catch (e) { return {}; }
   }
 
-  function track(name, data, userData) {
-    if (typeof window.RAYN_TRACK === 'function') window.RAYN_TRACK(name, data, userData);
+  function track(name, data, userData, opts) {
+    if (typeof window.RAYN_TRACK === 'function') window.RAYN_TRACK(name, data, userData, opts);
+  }
+
+  function newLeadEventId() {
+    if (typeof window.RAYN_MAKE_EVENT_ID === 'function') return window.RAYN_MAKE_EVENT_ID('Lead');
+    var rand = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    return 'Lead.' + rand;
+  }
+
+  function metaContext() {
+    return typeof window.RAYN_META_CONTEXT === 'function' ? window.RAYN_META_CONTEXT() : { consent: false, test: false };
   }
 
   /* --- "Visa intresse"-knappar: fyll i vad kunden är intresserad av --- */
@@ -178,6 +197,19 @@
       function val(name) { var f = form.elements[name]; return f && f.value ? f.value.trim() : ''; }
       var a = attribution();
       var u = a.utm || {};
+      var eventId = newLeadEventId();
+      var meta = metaContext();
+      /* Kom besökaren från en Meta-annons? (klick-id eller UTM från annonsen) */
+      var fromAd = !!a.fbclid || /^(facebook|fb|instagram|ig|meta)$/i.test(u.utm_source || '');
+      var leadData = {
+        traffic_source: fromAd ? 'meta_annons' : 'ovrigt',
+        content_name: form.getAttribute('data-content-name') || '',
+        content_category: 'Intresseformulär',
+        lead_type: 'intresseformular',
+        form_position: position,
+        interest: val('Intresse') || 'CO2 laser',
+        page_path: location.pathname
+      };
       var payload = {
         interest: val('Intresse') || 'CO2 laser',
         name: val('name'),
@@ -187,7 +219,19 @@
         form_position: position,
         page: location.origin + location.pathname,
         utm: u,
-        fbclid: !!a.fbclid
+        fbclid: !!a.fbclid,
+        test: !!meta.test,
+        meta: {
+          event_name: cfg.EVENT || 'Lead',
+          event_id: eventId,
+          consent: !!meta.consent,
+          fbp: meta.fbp || null,
+          fbc: meta.fbc || null,
+          fbclid: meta.fbclid || null,
+          fbclid_ts: meta.fbclid_ts || null,
+          event_source_url: meta.event_source_url || location.href.split('#')[0],
+          custom_data: leadData
+        }
       };
 
       function post(url, body) {
@@ -244,14 +288,11 @@
       send
         .then(function () { return hashedUserData(payload).catch(function () { return null; }); })
         .then(function (userData) {
-          track(cfg.EVENT || 'Lead', {
-            content_name: form.getAttribute('data-content-name') || '',
-            content_category: 'Intresseformulär',
-            lead_type: 'intresseformular',
-            form_position: position,
-            interest: payload.interest,
-            page_path: location.pathname
-          }, userData || undefined);
+          /* Samma event_id som servern fick → Meta räknar pixel + server som ett lead */
+          track(cfg.EVENT || 'Lead', leadData, userData || undefined, { eventId: eventId, skipCapi: true });
+          /* Eget event som BARA räknar leads från annonsen. Syns som egen rad i
+             Events Manager och kan jämföras direkt med kampanjens resultat. */
+          if (fromAd) track('LeadMetaAnnons', leadData, userData || undefined, { skipCapi: true });
           setStatus('');
           form.hidden = true;
           if (success) {
