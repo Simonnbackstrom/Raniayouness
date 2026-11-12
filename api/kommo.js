@@ -209,7 +209,7 @@ module.exports = async function handler(req, res) {
     lines.push(`Samtycke till upp till tre SMS om CO2-kampanjen: ${consentedAt.toISOString()}`);
     if (smsCustomer.ok) {
       try {
-        await enrollFollowUp(customerPhone, firstName, smsCustomer.sid, consentedAt, leadId);
+        await enrollFollowUp(customerPhone, name, smsCustomer.sid, consentedAt, leadId);
       } catch (error) {
         console.error('Could not enroll SMS follow-up', error.message);
         lines.push('SMS-uppföljningen kunde inte schemaläggas');
