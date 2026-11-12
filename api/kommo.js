@@ -45,6 +45,7 @@
 
 const { sendSms } = require('../lib/twilio-sms');
 const { enrollFollowUp } = require('../lib/sms-follow-up');
+const { kommo, addLeadNote } = require('../lib/kommo');
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
 function clean(v, max) {
@@ -60,23 +61,6 @@ function originAllowed(req) {
   if (/\.vercel\.app$/.test(host) && /^raniayouness/.test(host)) return true; /* förhandsversioner */
   const extra = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
   return extra.includes(origin);
-}
-
-async function kommo(path, body, attempt = 1) {
-  const res = await fetch(`https://${process.env.KOMMO_SUBDOMAIN}.kommo.com${path}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.KOMMO_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
-  /* Nytt försök vid tillfälliga fel hos Kommo */
-  if ((res.status === 429 || res.status >= 500) && attempt < 3) {
-    await new Promise((r) => setTimeout(r, 800 * attempt));
-    return kommo(path, body, attempt + 1);
-  }
-  return { ok: res.ok, status: res.status, data };
 }
 
 /* Svenskt nummer → E.164 (+46…). Returnerar '' om numret inte ser giltigt ut. */
@@ -225,7 +209,7 @@ module.exports = async function handler(req, res) {
     lines.push(`Samtycke till upp till tre SMS om CO2-kampanjen: ${consentedAt.toISOString()}`);
     if (smsCustomer.ok) {
       try {
-        await enrollFollowUp(customerPhone, firstName, smsCustomer.sid, consentedAt);
+        await enrollFollowUp(customerPhone, firstName, smsCustomer.sid, consentedAt, leadId);
       } catch (error) {
         console.error('Could not enroll SMS follow-up', error.message);
         lines.push('SMS-uppföljningen kunde inte schemaläggas');
@@ -233,7 +217,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const note = await kommo('/api/v4/leads/notes', [{ entity_id: leadId, note_type: 'common', params: { text: lines.join('\n') } }]);
+  const note = await addLeadNote(leadId, lines.join('\n'));
   if (!note.ok) console.error('Kommo notes', note.status, JSON.stringify(note.data).slice(0, 500));
   if (smsRania.skipped === undefined && !smsRania.ok) console.error('Notis-SMS till Rania misslyckades');
 
