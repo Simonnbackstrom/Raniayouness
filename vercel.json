@@ -1,0 +1,4 @@
+{
+  "crons": [{ "path": "/api/sms-follow-up", "schedule": "0 7 * * *" }],
+  "functions": { "api/sms-follow-up.js": { "maxDuration": 60 } }
+}

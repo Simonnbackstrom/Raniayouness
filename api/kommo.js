@@ -43,6 +43,8 @@
    Kräver e-post eller telefon.
    ========================================================================== */
 
+const { sendSms } = require('../lib/twilio-sms');
+const { enrollFollowUp } = require('../lib/sms-follow-up');
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
 function clean(v, max) {
@@ -135,24 +137,6 @@ function fillText(tpl, firstName) {
   return message.endsWith(SMS_OPT_OUT_LINE) ? message : `${message}\n\n${SMS_OPT_OUT_LINE}`;
 }
 
-async function sendSms(to, message) {
-  const sid = process.env.TWILIO_ACCOUNT_SID, token = process.env.TWILIO_AUTH_TOKEN, mg = process.env.TWILIO_MESSAGING_SERVICE_SID;
-  if (!sid || !token || !mg || !to) return { skipped: true };
-  try {
-    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
-      method: 'POST',
-      headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ To: to, MessagingServiceSid: mg, Body: message }).toString()
-    });
-    const text = await r.text();
-    if (!r.ok) { console.error('Twilio', r.status, text.slice(0, 300)); return { ok: false }; }
-    return { ok: true };
-  } catch (e) {
-    console.error('Twilio fetch', e && e.message);
-    return { ok: false };
-  }
-}
-
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -176,6 +160,8 @@ module.exports = async function handler(req, res) {
   const email = clean(input.email, 160).toLowerCase();
   const message = clean(input.message, 2000);
   const page = clean(input.page, 300);
+  const followUpConsent = input.sms_follow_up === true && Boolean(phone);
+  const consentedAt = new Date();
   const formPosition = clean(input.form_position, 20);
   const utm = {};
   UTM_KEYS.forEach((k) => { const v = clean(input.utm && input.utm[k], 200); if (v) utm[k] = v; });
@@ -235,6 +221,17 @@ module.exports = async function handler(req, res) {
   ]);
   if (smsCustomer.ok) lines.push('SMS-bekräftelse skickad till kunden');
   else if (phone && !customerPhone) lines.push('Ingen SMS-bekräftelse: ogiltigt mobilnummer');
+  if (followUpConsent) {
+    lines.push(`Samtycke till upp till tre SMS om CO2-kampanjen: ${consentedAt.toISOString()}`);
+    if (smsCustomer.ok) {
+      try {
+        await enrollFollowUp(customerPhone, firstName, smsCustomer.sid, consentedAt);
+      } catch (error) {
+        console.error('Could not enroll SMS follow-up', error.message);
+        lines.push('SMS-uppföljningen kunde inte schemaläggas');
+      }
+    }
+  }
 
   const note = await kommo('/api/v4/leads/notes', [{ entity_id: leadId, note_type: 'common', params: { text: lines.join('\n') } }]);
   if (!note.ok) console.error('Kommo notes', note.status, JSON.stringify(note.data).slice(0, 500));

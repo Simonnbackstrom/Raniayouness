@@ -184,6 +184,7 @@
         email: val('email'),
         phone: val('Telefon'),
         message: val('Meddelande'),
+        sms_follow_up: Boolean(form.elements.sms_follow_up && form.elements.sms_follow_up.checked),
         form_position: position,
         page: location.origin + location.pathname,
         utm: u,
