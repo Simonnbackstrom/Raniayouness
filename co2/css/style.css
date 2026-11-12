@@ -2070,3 +2070,62 @@ select.lead-field__input option { color: var(--color-ink); }
   .lp-price-card__price s { font-size: 0.875rem; }
   .lp-price-card__save { flex-shrink: 0; padding: 0.55rem 0.8rem; font-size: 0.75rem; margin-bottom: 0.2rem; }
 }
+
+/* ==========================================================================
+   Hero på mobil: tätare så att formuläret kommer högre upp
+   ========================================================================== */
+@media (max-width: 639px) {
+  .lp .hero-full { padding-block: var(--space-5) var(--space-6); }
+  .lp-pills { margin-bottom: var(--space-3); }
+  .lp .hero-full .eyebrow { margin-bottom: var(--space-2); }
+  .lp .hero-full h1 { font-size: clamp(2.2rem, 1.6rem + 3vw, 2.6rem); line-height: 1.05; margin-bottom: var(--space-3); }
+  /* Priset står redan i priskortet, så första meningen döljs på mobil */
+  .hero-full__lead-price { display: none; }
+  .lp .hero-full__lead { font-size: 1rem; line-height: 1.55; margin-bottom: var(--space-4); }
+  .lp-price-card { padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); border-radius: 1rem; }
+  .lp-price-card__top { margin-bottom: var(--space-2); }
+  .lp-price-card__price strong { font-size: 2.1rem; }
+  .lp-price-card__save { padding: 0.45rem 0.7rem; }
+  .lp .hero-full .age-note { margin-top: 0; margin-bottom: 0; font-size: 0.8125rem; line-height: 1.4; }
+  .lp-hero-grid { gap: var(--space-5); }
+}
+
+/* Betyg och adress inne i formulärkortet: en lugn rad under rubriken */
+.lp .lp-hero-form .lead-form__head { gap: var(--space-2); padding-bottom: var(--space-1); }
+.lead-form__head .lp-pills {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.35rem var(--space-4); margin: 0;
+}
+.lead-form__head .lp-rating,
+.lead-form__head .lp-loc {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  width: auto; margin: 0; padding: 0;
+  background: none; border: 0; border-radius: 0;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  font-size: 0.875rem; line-height: 1.3; white-space: nowrap;
+  color: var(--color-taupe-text); text-shadow: none;
+}
+.lead-form__head .lp-rating strong { color: var(--color-ink); font-weight: 600; }
+.lead-form__head .lp-rating .stars { display: inline-flex; gap: 1px; }
+.lead-form__head .lp-rating .stars svg { width: 0.8rem; height: 0.8rem; color: var(--color-gold); }
+.lead-form__head .lp-loc svg { width: 0.9rem; height: 0.9rem; color: var(--color-gold); }
+
+/* Förtroenderad på mobil: betyget överst, tre märken i luftiga kolumner utan linjer */
+@media (max-width: 639px) {
+  .lp .trust-band { border-bottom: 0; }
+  .lp .trust-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5) var(--space-3);
+    padding: var(--space-6) 0;
+    text-align: center;
+  }
+  .lp .trust-row li:first-child {
+    grid-column: 1 / -1; justify-content: center;
+    font-size: 0.9375rem;
+  }
+  .lp .trust-row li:not(:first-child) {
+    flex-direction: column; justify-content: flex-start; gap: 0.5rem;
+    font-size: 0.78rem; line-height: 1.35;
+  }
+  .lp .trust-row li:not(:first-child) svg { width: 1.25rem; height: 1.25rem; color: var(--color-gold); }
+}
