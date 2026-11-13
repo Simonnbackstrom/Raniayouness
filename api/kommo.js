@@ -19,24 +19,29 @@
      ALLOWED_ORIGINS         Extra domäner som får skicka (valfritt). Den egna
                              domänen är alltid tillåten.
 
-   SMS via Twilio (valfritt – utan de tre första skickas inga SMS):
+   BEKRÄFTELSE-SMS VIA KOMMO (syns i Kommo Chats)
+     När leadet skapats startar funktionen Salesboten "CO2 – Bekräftelse-SMS"
+     i Kommo. Boten skickar SMS:et via Twilio Text Messaging, så meddelandet
+     syns i Kommo Chats och kundens svar hamnar i samma konversation.
+     Texten ändras i Kommo → Bots → CO2 – Bekräftelse-SMS.
+     {{contact.first_name}} byts mot kundens förnamn.
+     Bot-ID:n står i lib/kommo.js och kan bytas med miljövariabler:
+       KOMMO_BOT_CONFIRMATION     (standard 12908)
+       KOMMO_BOT_FOLLOW_UP_DAY1   (standard 12924)
+       KOMMO_BOT_FOLLOW_UP_DAY3   (standard 12926)
+       KOMMO_BOT_FOLLOW_UP_DAY4   (standard 12928)
+     Kundens mobilnummer sparas som +46… i Kommo. Det krävs för att SMS:et
+     ska komma fram och för att svaret ska kopplas till rätt kontakt.
+
+   Twilio (används för notis-SMS till Rania och för påminnelserna):
      TWILIO_ACCOUNT_SID           Account SID från Twilio Console (börjar med AC)
      TWILIO_AUTH_TOKEN            Auth Token från Twilio Console
      TWILIO_MESSAGING_SERVICE_SID Messaging Service "RAYN" (börjar med MG)
      RAYN_NOTIFY_PHONE            (valfritt) Ranias mobil, t.ex. +46701234567.
                                   Får ett SMS per nytt lead.
-     SMS_TEXT                     (valfritt) SMS-text som har företräde framför Kommo-mallen.
 
-   SMS-TEXTEN ÄNDRAS I KOMMO
-     Om SMS_TEXT är tom hämtas mallen "SMS bekräftelse webbformulär" i Kommo.
-     Funktionen skapar mallen vid behov. Ändra texten där:
-       Kommo → Settings → Chat settings → Templates (Mallar)
-     {{contact.name}} eller {namn} byts mot kundens förnamn.
-     Finns ingen mall används standardtexten nedan.
-
-   SMS skickas efter att leadet skapats i Kommo. Misslyckas ett SMS loggas
-   felet, men leadet och svaret till kunden påverkas inte. Svarar kunden på
-   SMS:et hamnar svaret i Kommos chatt via Twilio-integrationen.
+   Misslyckas bekräftelsen loggas felet och står i anteckningen på leadet,
+   men leadet och svaret till kunden påverkas inte.
 
    META CONVERSIONS API (valfritt – utan de två första skickas inget):
      META_PIXEL_ID          Samma pixel-ID som i co2/js/config.js
@@ -62,7 +67,7 @@
 const crypto = require('crypto');
 const { sendSms } = require('../lib/twilio-sms');
 const { enrollFollowUp } = require('../lib/sms-follow-up');
-const { kommo, addLeadNote } = require('../lib/kommo');
+const { kommo, addLeadNote, runSalesbot, BOTS } = require('../lib/kommo');
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
@@ -89,54 +94,6 @@ function toE164(p) {
   else if (d.startsWith('0')) d = '+46' + d.slice(1);
   else if (!d.startsWith('+')) d = '+' + d;
   return /^\+\d{8,15}$/.test(d) ? d : '';
-}
-
-const DEFAULT_SMS = 'Hej {{contact.name}}! 😊\n\nVad roligt att du är intresserad av vår CO2 laser-kampanj! Det är en av mina favoritbehandlingar för en jämnare hud och ett fantastiskt glow ✨\n\nHar du redan hunnit boka en tid, eller vill du att jag hjälper dig?\n\nSvara bara på det här sms:et så hjälper jag dig personligen.\n\nBästa hälsningar\nRania, RAYN';
-const SMS_OPT_OUT_LINE = 'Reply STOP to unsubscribe.';
-const TEMPLATE_EXTERNAL_ID = 'rayn-sms-bekraftelse';
-const TEMPLATE_NAME = 'SMS bekräftelse webbformulär';
-
-async function kommoGet(path) {
-  const r = await fetch(`https://${process.env.KOMMO_SUBDOMAIN}.kommo.com${path}`, {
-    headers: { Authorization: `Bearer ${process.env.KOMMO_TOKEN}` }
-  });
-  if (r.status === 204) return { ok: true, data: null };
-  const text = await r.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
-  return { ok: r.ok, status: r.status, data };
-}
-
-/* En angiven SMS_TEXT har företräde. Annars hämtas texten från Kommo. */
-async function getSmsText() {
-  const configuredText = (process.env.SMS_TEXT || '').trim();
-  if (configuredText) return configuredText;
-  try {
-    const found = await kommoGet(`/api/v4/chats/templates?filter[external_id][]=${TEMPLATE_EXTERNAL_ID}&limit=50`);
-    const list = found.data && found.data._embedded && found.data._embedded.chat_templates;
-    const tpl = Array.isArray(list) && list.find((x) => x.external_id === TEMPLATE_EXTERNAL_ID);
-    if (tpl && typeof tpl.content === 'string' && tpl.content.trim()) return tpl.content.trim();
-    if (found.ok && !tpl) {
-      const made = await kommo('/api/v4/chats/templates', [{
-        name: TEMPLATE_NAME, content: DEFAULT_SMS, is_editable: true, type: 'amocrm', external_id: TEMPLATE_EXTERNAL_ID
-      }]);
-      if (!made.ok) console.error('Kommo skapa mall', made.status, JSON.stringify(made.data).slice(0, 400));
-    } else if (!found.ok) {
-      console.error('Kommo hämta mall', found.status, JSON.stringify(found.data).slice(0, 400));
-    }
-  } catch (e) {
-    console.error('Kommo mall', e && e.message);
-  }
-  return DEFAULT_SMS;
-}
-
-function fillText(tpl, firstName) {
-  const message = tpl
-    .replace(/\{\{\s*contact\.name\s*\}\}|\{namn\}/gi, firstName || '')
-    .replace(/Hej\s+!/g, 'Hej!')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
-  return message.endsWith(SMS_OPT_OUT_LINE) ? message : `${message}\n\n${SMS_OPT_OUT_LINE}`;
 }
 
 /* ---------------------------------------------------------------------------
@@ -286,9 +243,17 @@ module.exports = async function handler(req, res) {
   if (phone && !/^[0-9+() ]{7,}$/.test(phone)) return bad('phone');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('email');
 
+  /* +46… i Kommo: krävs för att Kommo-botens SMS ska komma fram och för att
+     kundens svar ska kopplas till rätt kontakt. Ogiltiga nummer sparas som de skrevs. */
+  const customerPhone = toE164(phone);
   const contactFields = [];
-  if (phone) contactFields.push({ field_code: 'PHONE', values: [{ value: phone, enum_code: 'MOB' }] });
+  if (phone) contactFields.push({ field_code: 'PHONE', values: [{ value: customerPhone || phone, enum_code: 'MOB' }] });
   if (email) contactFields.push({ field_code: 'EMAIL', values: [{ value: email, enum_code: 'WORK' }] });
+
+  /* Förnamn och efternamn i separata fält, så att {{contact.first_name}} i bottarna blir bara förnamnet */
+  const nameParts = name.split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || 'Okänt namn';
+  const lastName = nameParts.slice(1).join(' ');
 
   const tags = (process.env.KOMMO_TAGS || 'Webbformulär,CO2 kampanj').split(',').map((s) => s.trim()).filter(Boolean);
   if (fromMeta && !isTest) tags.push('Meta annons');
@@ -297,7 +262,11 @@ module.exports = async function handler(req, res) {
     name: `Intresse: ${interest}`,
     _embedded: {
       tags: tags.map((t) => ({ name: t })),
-      contacts: [{ first_name: name || 'Okänt namn', custom_fields_values: contactFields }]
+      contacts: [{
+        first_name: firstName,
+        ...(lastName ? { last_name: lastName } : {}),
+        custom_fields_values: contactFields
+      }]
     }
   };
   if (process.env.KOMMO_PIPELINE_ID) lead.pipeline_id = Number(process.env.KOMMO_PIPELINE_ID);
@@ -325,25 +294,29 @@ module.exports = async function handler(req, res) {
     `Klick från Meta-annons: ${fromMeta ? 'ja' : 'nej'}`
   ].filter(Boolean);
 
-  /* SMS (bekräftelse till kunden + notis till Rania) och Lead till Meta, parallellt */
-  const firstName = (name.split(/\s+/)[0] || '').slice(0, 20);
-  const customerPhone = toE164(phone);
-  const contactInfo = [phone, email].filter(Boolean).join(', ');
-  const smsText = customerPhone && process.env.TWILIO_ACCOUNT_SID ? fillText(await getSmsText(), firstName) : '';
+  /* Bekräftelse via Kommo-bot (syns i Chats), notis till Rania via Twilio och Lead till Meta, parallellt */
+  const contactInfo = [customerPhone || phone, email].filter(Boolean).join(', ');
+  const confirmation = customerPhone
+    ? runSalesbot(BOTS.confirmation, leadId).catch((e) => ({ ok: false, status: 0, data: e && e.message }))
+    : Promise.resolve({ skipped: true });
   const [smsCustomer, smsRania, metaResult] = await Promise.all([
-    sendSms(customerPhone, smsText),
+    confirmation,
     sendSms(toE164(process.env.RAYN_NOTIFY_PHONE),
       `${isTest ? 'TEST – ' : ''}Nytt lead från CO2-sidan: ${(name || 'Okänt namn').slice(0, 40)}, ${contactInfo.slice(0, 60)}. Intresse: ${interest.slice(0, 40)}. Se Kommo.`),
     sendMetaLead(req, meta, { email, phone, name, page, test: isTest })
   ]);
-  if (smsCustomer.ok) lines.push('SMS-bekräftelse skickad till kunden');
+  if (smsCustomer.ok) lines.push('SMS-bekräftelse skickad via Kommo-bot (syns i Chats)');
   else if (phone && !customerPhone) lines.push('Ingen SMS-bekräftelse: ogiltigt mobilnummer');
+  else if (customerPhone) {
+    console.error('Kommo salesbot (bekräftelse)', smsCustomer.status, JSON.stringify(smsCustomer.data).slice(0, 500));
+    lines.push('SMS-bekräftelsen kunde inte startas i Kommo – se Vercel-loggen');
+  }
   lines.push(`Skickad till Meta (Conversions API): ${metaResult.ok ? 'ja' : metaResult.skipped ? `nej – ${metaResult.skipped}` : 'nej – fel, se Vercel-loggen'}`);
   if (followUpConsent) {
     lines.push(`Uppföljning av intresseanmälan: upp till tre SMS om CO2-kampanjen (svara STOP för att avsluta). Anmäld ${consentedAt.toISOString()}`);
     if (smsCustomer.ok) {
       try {
-        await enrollFollowUp(customerPhone, name, smsCustomer.sid, consentedAt, leadId);
+        await enrollFollowUp(customerPhone, firstName, consentedAt, leadId);
       } catch (error) {
         console.error('Could not enroll SMS follow-up', error.message);
         lines.push('SMS-uppföljningen kunde inte schemaläggas');
