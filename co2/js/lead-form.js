@@ -2,7 +2,7 @@
    RAYN – intresseformulär (landningssidan CO2)
    --------------------------------------------------------------------------
    Sidan har samma formulär på två ställen: överst (hero) och längst ner.
-   Fält: namn, e-post, mobilnummer (frivilligt), meddelande + dolt fält "Intresse" som fylls i när
+   Fält: förnamn, efternamn, e-post, mobilnummer, meddelande + fältet "Intresse" som fylls i när
    kunden klickar på t.ex. "Visa intresse" vid ett priskort.
 
    Skickas till Kommo via Vercel-funktionen api/kommo.js i repots rot.
@@ -60,7 +60,7 @@
   }
   function hashedUserData(p) {
     var em = String(p.email || '').trim().toLowerCase();
-    var fn = String(p.name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^\p{L}]/gu, '');
+    var fn = String(p.first_name || p.name || '').trim().split(/\s+/)[0].toLowerCase().replace(/[^\p{L}]/gu, '');
     return Promise.all([sha256(em), sha256(normPhone(p.phone)), sha256(fn), sha256('se')]).then(function (h) {
       var ud = {};
       if (h[0]) ud.em = h[0];
@@ -150,6 +150,8 @@
       if (field.validity.valueMissing) {
         if (field.type === 'email') return 'Fyll i din e-post så att vi kan kontakta dig.';
         if (field.type === 'tel') return 'Fyll i ditt mobilnummer så att vi kan kontakta dig.';
+        if (field.name === 'first_name') return 'Fyll i ditt förnamn.';
+        if (field.name === 'last_name') return 'Fyll i ditt efternamn.';
         if (field.name === 'name') return 'Fyll i ditt namn.';
         return 'Fyll i det här fältet.';
       }
@@ -162,6 +164,8 @@
       var first = null;
       Array.prototype.forEach.call(form.querySelectorAll('input, textarea'), function (f) {
         if (f.name === 'botcheck' || f.type === 'hidden') return;
+        /* Bara mellanslag räknas som tomt */
+        if (f.required && f.type === 'text' && f.value && !f.value.trim()) f.value = '';
         var msg = f.checkValidity() ? '' : messageFor(f);
         fieldError(f, msg);
         if (msg && !first) first = f;
@@ -217,9 +221,13 @@
         interest: val('Intresse') || 'CO2 laser',
         page_path: location.pathname
       };
+      var firstName = val('first_name');
+      var lastName = val('last_name');
       var payload = {
         interest: val('Intresse') || 'CO2 laser',
-        name: val('name'),
+        name: (firstName || lastName) ? (firstName + ' ' + lastName).trim() : val('name'),
+        first_name: firstName,
+        last_name: lastName,
         email: val('email'),
         phone: val('Telefon'),
         message: val('Meddelande'),

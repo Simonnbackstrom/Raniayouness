@@ -57,7 +57,7 @@
    deduplicerar pixel + server till en händelse. Kontaktuppgifter skickas
    bara SHA-256-krypterade. Resultatet står i anteckningen i Kommo.
 
-   Tar emot: { name, email, phone?, message?, interest?, treatment?,
+   Tar emot: { name, first_name?, last_name?, email, phone?, message?, interest?, treatment?,
                form_position?, page?, utm?, fbclid?, test?,
                meta?: { event_name, event_id, consent, fbp, fbc, fbclid,
                         fbclid_ts, event_source_url, custom_data } }
@@ -222,7 +222,10 @@ module.exports = async function handler(req, res) {
   if (input.botcheck) { res.status(200).send(JSON.stringify({ ok: true, lead_id: null })); return; } /* spam */
 
   const interest = clean(input.interest, 80) || clean(input.treatment, 80) || 'CO2 laser';
-  const name = clean(input.name, 120);
+  /* Förnamn och efternamn skickas som egna fält från CO2-formuläret. Äldre formulär skickar bara name. */
+  const inputFirst = clean(input.first_name, 60);
+  const inputLast = clean(input.last_name, 60);
+  const name = (inputFirst || inputLast) ? `${inputFirst} ${inputLast}`.trim() : clean(input.name, 120);
   const phone = clean(input.phone, 40);
   const email = clean(input.email, 160).toLowerCase();
   const message = clean(input.message, 2000);
@@ -252,8 +255,8 @@ module.exports = async function handler(req, res) {
 
   /* Förnamn och efternamn i separata fält, så att {{contact.first_name}} i bottarna blir bara förnamnet */
   const nameParts = name.split(/\s+/).filter(Boolean);
-  const firstName = nameParts[0] || 'Okänt namn';
-  const lastName = nameParts.slice(1).join(' ');
+  const firstName = inputFirst || nameParts[0] || 'Okänt namn';
+  const lastName = inputFirst ? inputLast : nameParts.slice(1).join(' ');
 
   const tags = (process.env.KOMMO_TAGS || 'Webbformulär,CO2 kampanj').split(',').map((s) => s.trim()).filter(Boolean);
   if (fromMeta && !isTest) tags.push('Meta annons');
