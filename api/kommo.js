@@ -243,7 +243,7 @@ module.exports = async function handler(req, res) {
 
   const bad = (error) => res.status(422).send(JSON.stringify({ ok: false, error }));
   if (!phone && !email) return bad('contact');
-  if (phone && !/^[0-9+() ]{7,}$/.test(phone)) return bad('phone');
+  if (phone && !/^[0-9+() -]{7,}$/.test(phone)) return bad('phone');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('email');
 
   /* +46… i Kommo: krävs för att Kommo-botens SMS ska komma fram och för att
